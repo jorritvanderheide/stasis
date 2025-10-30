@@ -116,12 +116,14 @@ pub async fn spawn_ipc_socket_with_listener(
                                 // Send JSON response for Waybar feedback
                                 let response = if currently_inhibited {
                                     serde_json::json!({
-                                        "text": "⌚",
+                                        "text": "",
+                                        "alt": "idle_active",
                                         "tooltip": "Idle inhibition cleared"
                                     })
                                 } else {
                                     serde_json::json!({
-                                        "text": "🚫",
+                                        "text": "",
+                                        "alt": "manually_inhibited",
                                         "tooltip": "Idle inhibition active"
                                     })
                                 };
@@ -147,15 +149,16 @@ pub async fn spawn_ipc_socket_with_listener(
 
                                 if as_json {
                                     let icon = if mgr.state.manually_paused {
-                                        "🚫"
+                                        "manually_inhibited"
                                     } else if idle_inhibited {
-                                        "☕"
+                                        "idle_inhibited"
                                     } else {
-                                        "⌚"
+                                        "idle_active"
                                     };
 
                                     serde_json::json!({
-                                        "text": icon,
+                                        "text": "",
+                                        "alt": icon,
                                         "tooltip": format!(
                                             "{}\nIdle time: {}s\nUptime: {}s\nPaused: {}\nManually paused: {}\nApp blocking: {}",
                                             if idle_inhibited { "Idle inhibited" } else { "Idle active" },

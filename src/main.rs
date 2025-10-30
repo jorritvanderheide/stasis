@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
                     println!("{}", String::from_utf8_lossy(&response));
                 } else {
                     if *json {
-                        println!(r#"{{"text":"😴","tooltip":"No running Stasis instance found"}}"#);
+                        println!(r#"{{"text":"", "alt": "not_running", "tooltip":"No running Stasis instance found"}}"#);
                     } else {
                         eprintln!("No running Stasis instance found");
                         std::process::exit(1);
