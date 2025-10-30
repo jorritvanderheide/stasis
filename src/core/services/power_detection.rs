@@ -76,8 +76,19 @@ pub async fn spawn_power_source_monitor(manager: Arc<Mutex<Manager>>) {
 
             let mut mgr = manager.lock().await;
             mgr.state.set_on_battery(!on_ac);
+
+            let new_block = if mgr.state.on_battery() == Some(true) { "battery" } else { "ac" };
+            if mgr.state.current_block.as_deref() != Some(new_block) {
+                mgr.state.current_block = Some(new_block.to_string());
+                mgr.state.action_index = 0;
+                log_message(&format!("Switched action block to: {}", new_block));
+                mgr.state.notify.notify_one();
+            }
+
             mgr.reset_instant_actions();
             mgr.trigger_instant_actions().await;
+
+
         }
     }
 }
