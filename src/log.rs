@@ -79,16 +79,22 @@ pub fn log_to_cache(message: &str) {
 }
 
 pub fn log_message(message: &str) {
-    let msg = format!("[Stasis] {}", message);
+    let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
+    let msg = format!("[{}][Stasis] {}", timestamp, message);
+
     log_to_cache(&msg);
+
     if GLOBAL_CONFIG.lock().unwrap().verbose {
         println!("{}", &msg);
     }
 }
 
 pub fn log_error_message(message: &str) {
-    let error_msg = format!("[ERROR] {}", message);
+    let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
+    let error_msg = format!("[{}][ERROR] {}", timestamp, message);
+
     log_to_cache(&error_msg);
+
     if GLOBAL_CONFIG.lock().unwrap().verbose {
         eprintln!("{}", &error_msg);
     }
