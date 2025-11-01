@@ -55,40 +55,63 @@ async fn is_on_ac_power() -> bool {
     false
 }
 
+
+
 pub async fn spawn_power_source_monitor(manager: Arc<Mutex<Manager>>) {
     let on_ac = detect_initial_power_state(&manager).await;
     let mut last_on_ac = on_ac;
-
     let mut ticker = tokio::time::interval(Duration::from_secs(5));
+    
     loop {
         ticker.tick().await;
-
+        
         let mgr = manager.lock().await;
         if !mgr.state.is_laptop() {
             continue;
         }
         drop(mgr); // release lock
-
+        
         let on_ac = is_on_ac_power().await;
+        
         if on_ac != last_on_ac {
             last_on_ac = on_ac;
             log_message(&format!("Power source changed: {}", if on_ac { "AC" } else { "Battery" }));
-
+            
             let mut mgr = manager.lock().await;
             mgr.state.set_on_battery(!on_ac);
-
-            let new_block = if mgr.state.on_battery() == Some(true) { "battery" } else { "ac" };
+            
+            let new_block = if mgr.state.on_battery() == Some(true) { 
+                "battery" 
+            } else { 
+                "ac" 
+            };
+            
             if mgr.state.current_block.as_deref() != Some(new_block) {
                 mgr.state.current_block = Some(new_block.to_string());
+                
+                let actions = match new_block {
+                    "ac" => &mut mgr.state.ac_actions,
+                    "battery" => &mut mgr.state.battery_actions,
+                    _ => &mut mgr.state.default_actions,
+                };
+                
+                // Clear last_triggered for all non-instant actions
+                for action in actions.iter_mut() {
+                    if !action.is_instant() {
+                        action.last_triggered = None;
+                    }
+                }
+                
                 mgr.state.action_index = 0;
-                log_message(&format!("Switched action block to: {}", new_block));
+                
+                log_message(&format!("Switched action block to: {} (timings reset)", new_block));
                 mgr.state.notify.notify_one();
             }
-
+            
+            // Handle instant actions for the new block
             mgr.reset_instant_actions();
             mgr.trigger_instant_actions().await;
-
-
         }
     }
 }
+
