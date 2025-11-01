@@ -63,40 +63,6 @@ pub async fn handle_event(manager: &Arc<Mutex<Manager>>, event: Event) {
             mgr.resume(false).await;
             mgr.reset().await;
             wake_idle_tasks(&mgr.state);
-
-            // Release lock before spawning
-            drop(mgr);
-            
-            // Restart Waybar if it's running
-            tokio::spawn(async {
-                tokio::time::sleep(Duration::from_millis(500)).await;
-                
-                // Check if waybar is running
-                match tokio::process::Command::new("pgrep")
-                    .arg("-x")  // exact match
-                    .arg("waybar")
-                    .output()
-                    .await
-                {
-                    Ok(output) if !output.stdout.is_empty() => {
-                        // Waybar is running, send restart signal
-                        match tokio::process::Command::new("pkill")
-                            .args(["-SIGUSR2", "waybar"])
-                            .spawn()
-                        {
-                            Ok(_) => log_message("Sent restart signal to Waybar"),
-                            Err(e) => log_message(&format!("Failed to signal Waybar: {}", e)),
-                        }
-                    }
-                    Ok(_) => {
-                        // Waybar is not running, skip
-                        log_message("Waybar not detected, skipping restart signal");
-                    }
-                    Err(e) => {
-                        log_message(&format!("Failed to check for Waybar process: {}", e));
-                    }
-                }
-            });
         }
                 
         Event::LockScreenDetected => {

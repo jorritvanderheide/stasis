@@ -368,10 +368,10 @@ impl Manager {
         self.state.notify.notify_one();
     }
 
+
     pub async fn pause(&mut self, manual: bool) {
         if manual {
             self.state.manually_paused = true;
-            self.state.paused = false;
             log_message("Idle timers manually paused");
         } else if !self.state.manually_paused {
             self.state.paused = true;
@@ -379,14 +379,24 @@ impl Manager {
         }
     }
 
+
     pub async fn resume(&mut self, manually: bool) {
         if manually {
             if self.state.manually_paused {
                 self.state.manually_paused = false;
-                self.state.paused = false;
-                log_message("Idle timers manually resumed");
+                
+                if self.state.active_inhibitor_count == 0 {
+                    self.state.paused = false;
+                    log_message("Idle timers manually resumed");
+                } else {
+                    log_message(&format!(
+                        "Manual pause cleared, but {} inhibitor(s) still active - timers remain paused",
+                        self.state.active_inhibitor_count
+                    ));
+                }
             }
         } else if !self.state.manually_paused && self.state.paused {
+            // This is called by decr_active_inhibitor when count reaches 0
             self.state.paused = false;
             log_message("Idle timers automatically resumed");
         }
