@@ -332,32 +332,28 @@ async fn spawn_wayland_monitor(
     manager: Arc<Mutex<Manager>>,
     app_inhibitor: Arc<Mutex<AppInhibitor>>,
 ) {
+    // Capture env vars once
+    let wayland_display = match std::env::var("WAYLAND_DISPLAY") {
+        Ok(display) => display,
+        Err(_) => return,
+    };
+    let xdg_runtime = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
+    let socket_path = format!("{}/{}", xdg_runtime, wayland_display);
+
     tokio::spawn(async move {
-        let wayland_display = match var("WAYLAND_DISPLAY") {
-            Ok(display) => display,
-            Err(_) => return,
-        };
-        
-        let xdg_runtime = match var("XDG_RUNTIME_DIR") {
-            Ok(dir) => dir,
-            Err(_) => "/run/user/1000".to_string(),
-        };
-        
-        let socket_path = format!("{}/{}", xdg_runtime, wayland_display);
-        
         loop {
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-            
-            // Check if Wayland socket still exists
-            if !std::path::Path::new(&socket_path).exists() {
-                log_message("Wayland compositor socket disappeared, shutting down...");
-                
+            tokio::time::sleep(Duration::from_secs(2)).await;
+
+            // Try connecting to the Wayland socket
+            if UnixStream::connect(&socket_path).await.is_err() {
+                log_message("Wayland compositor is no longer responding, shutting down...");
+
                 // Shutdown idle timer
                 manager.lock().await.shutdown().await;
-                
+
                 // Shutdown app inhibitor
                 app_inhibitor.lock().await.shutdown().await;
-                
+
                 let _ = std::fs::remove_file(SOCKET_PATH);
                 log_message("Shutdown complete, goodbye!");
                 std::process::exit(0);
@@ -365,3 +361,4 @@ async fn spawn_wayland_monitor(
         }
     });
 }
+
