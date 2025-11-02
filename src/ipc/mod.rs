@@ -22,7 +22,6 @@ use crate::{
 pub async fn spawn_ipc_socket_with_listener(
     manager: Arc<tokio::sync::Mutex<Manager>>,
     app_inhibitor: Arc<tokio::sync::Mutex<AppInhibitor>>,
-    cfg_path: String,
     listener: UnixListener,
 ) {
     tokio::spawn(async move {
@@ -32,7 +31,6 @@ pub async fn spawn_ipc_socket_with_listener(
                     // Clone for each connection
                     let manager = Arc::clone(&manager);
                     let app_inhibitor = Arc::clone(&app_inhibitor);
-                    let cfg_path = cfg_path.clone();
                     
                     tokio::spawn(async move {
                         let result = timeout(Duration::from_secs(10), async {
@@ -47,7 +45,7 @@ pub async fn spawn_ipc_socket_with_listener(
                                     let response = match cmd.as_str() {
                                         // === CONFIG ===
                                         "reload" => {
-                                            match config::parser::load_config(&cfg_path) {
+                                            match config::parser::load_config() {
                                                 Ok(new_cfg) => {
                                                     let mut mgr = manager.lock().await;
                                                     mgr.state.update_from_config(&new_cfg).await;

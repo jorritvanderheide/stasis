@@ -33,7 +33,6 @@ use crate::{
 
 use crate::{
     cli::Args, 
-    config::get_config_path, 
     log::{log_error_message, log_message, set_verbose}
 };
 
@@ -200,12 +199,11 @@ async fn main() -> Result<()> {
     })?;
     
     // --- Load config ---
-    let config_path = args.config.unwrap_or(get_config_path().await?);
     if args.verbose {
         log_message("Verbose mode enabled");
         set_verbose(true);
     }
-    let cfg = Arc::new(load_config(config_path.to_str().unwrap())?);
+    let cfg = Arc::new(load_config()?);
     let manager = Manager::new(Arc::clone(&cfg));
     let manager = Arc::new(Mutex::new(manager));
 
@@ -261,7 +259,6 @@ async fn main() -> Result<()> {
     ipc::spawn_ipc_socket_with_listener(
         Arc::clone(&manager),
         Arc::clone(&app_inhibitor),
-        config_path.to_str().unwrap().to_string(),
         listener,
     ).await;
 
