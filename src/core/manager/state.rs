@@ -5,7 +5,7 @@ use tokio::sync::Notify;
 use crate::{
     config::model::{IdleAction, IdleActionBlock, StasisConfig}, log::log_message
 };
-use crate::core::utils::is_laptop;
+use crate::core::utils::{detect_chassis, ChassisKind};
 
 #[derive(Debug)]
 pub struct ManagerState {
@@ -115,10 +115,9 @@ impl ManagerState {
             .cloned()
             .collect();
 
-        let chassis = if is_laptop() {
-            ChassisType::Laptop(LaptopState { on_battery: false })
-        } else {
-            ChassisType::Desktop(DesktopState)
+        let chassis = match detect_chassis() {
+            ChassisKind::Laptop => ChassisType::Laptop(LaptopState { on_battery: false }),
+            ChassisKind::Desktop => ChassisType::Desktop(DesktopState),
         };
 
         let state = Self {

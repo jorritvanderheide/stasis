@@ -3,7 +3,7 @@ use regex::Regex;
 use rune_cfg::{RuneConfig, Value};
 use crate::config::model::*;
 use crate::log::log_message;
-use crate::core::utils::is_laptop;
+use crate::core::utils::{detect_chassis, ChassisKind};
 
 // --- helpers ---
 fn parse_app_pattern(s: &str) -> Result<AppInhibitPattern> {
@@ -192,20 +192,22 @@ pub fn load_config(path: &str) -> Result<StasisConfig> {
         })
         .unwrap_or_default();
 
-    let laptop = is_laptop();    
-    let actions = if laptop {
-        let mut all = Vec::new();
-        all.extend(
-            collect_actions(&config, "stasis.on_ac")
-                .or_else(|_| collect_actions(&config, "stasis.on-ac"))?
-        );
-        all.extend(
-            collect_actions(&config, "stasis.on_battery")
-                .or_else(|_| collect_actions(&config, "stasis.on-battery"))?
-        );
-        all
-    } else {
-        collect_actions(&config, "stasis")?
+    let chassis = detect_chassis();
+
+    let actions = match chassis {
+        ChassisKind::Laptop => {
+            let mut all = Vec::new();
+            all.extend(
+                collect_actions(&config, "stasis.on_ac")
+                    .or_else(|_| collect_actions(&config, "stasis.on-ac"))?
+            );
+            all.extend(
+                collect_actions(&config, "stasis.on_battery")
+                    .or_else(|_| collect_actions(&config, "stasis.on-battery"))?
+            );
+            all
+        }
+        ChassisKind::Desktop => collect_actions(&config, "stasis")?,
     };
 
     if actions.is_empty() {

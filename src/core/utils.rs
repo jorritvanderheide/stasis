@@ -1,16 +1,19 @@
-use std::{fs, time::Duration};
+use std::time::Duration;
 
-pub fn is_laptop() -> bool {
-    let chassis_path = "/sys/class/dmi/id/chassis_type";
+pub enum ChassisKind {
+    Laptop,
+    Desktop,
+}
 
-    if let Ok(content) = fs::read_to_string(chassis_path) {
-        match content.trim() {
-            "8" | "9" | "10" => true,
-            _ => false,
+pub fn detect_chassis() -> ChassisKind {
+    // Try reading from sysfs
+    if let Ok(data) = std::fs::read_to_string("/sys/class/dmi/id/chassis_type") {
+        if data.trim() == "8" || data.trim() == "9" || data.trim() == "10" || data.trim() == "14" {
+            return ChassisKind::Laptop;
         }
-    } else {
-        false
     }
+
+    ChassisKind::Desktop
 }
 
 pub fn format_duration(dur: Duration) -> String {
