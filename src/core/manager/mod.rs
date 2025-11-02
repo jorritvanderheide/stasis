@@ -150,11 +150,11 @@ impl Manager {
                     
                     let debounce_end = now + debounce;
                     if self.state.action_index < actions.len() {
-                        actions[self.state.action_index].last_triggered = Some(debounce_end); 
+                        actions[self.state.action_index].last_triggered = Some(now); 
                     } else {
                         // If at the end, reset last_triggered for the last action
                         if lock_index < actions.len() {
-                            actions[lock_index].last_triggered = Some(debounce_end);
+                            actions[lock_index].last_triggered = Some(now);
                         } 
                     }
                     
@@ -375,7 +375,7 @@ impl Manager {
             };
 
             if self.state.action_index < actions.len() {
-                actions[self.state.action_index].last_triggered = Some(now + debounce);
+                actions[self.state.action_index].last_triggered = Some(now);
             }
         }
 
