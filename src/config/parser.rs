@@ -1,11 +1,16 @@
 use eyre::{Result, eyre, WrapErr};
 use regex::Regex;
 use rune_cfg::{RuneConfig, Value};
-use crate::config::model::*;
-use crate::log::log_message;
-use crate::core::utils::{detect_chassis, ChassisKind};
+use std::path::PathBuf;
+
+use crate::{
+    config::model::*,
+    log::log_message,
+    core::utils::{detect_chassis, ChassisKind},
+};
 
 // --- helpers ---
+
 fn parse_app_pattern(s: &str) -> Result<AppInhibitPattern> {
     let regex_meta = ['.', '*', '+', '?', '(', ')', '[', ']', '{', '}', '|', '\\', '^', '$'];
     if s.chars().any(|c| regex_meta.contains(&c)) {
@@ -42,7 +47,8 @@ fn collect_actions(config: &RuneConfig, path: &str) -> Result<Vec<IdleActionBloc
         }
 
         let command_path = format!("{}.{}.command", path, key);
-        let command = match config.get::<String>(&command_path)
+        let command = match config
+            .get::<String>(&command_path)
             .or_else(|_| config.get::<String>(&command_path.replace('-', "_")))
         {
             Ok(c) => c,
@@ -50,7 +56,8 @@ fn collect_actions(config: &RuneConfig, path: &str) -> Result<Vec<IdleActionBloc
         };
 
         let timeout_path = format!("{}.{}.timeout", path, key);
-        let timeout = match config.get::<u64>(&timeout_path)
+        let timeout = match config
+            .get::<u64>(&timeout_path)
             .or_else(|_| config.get::<u64>(&timeout_path.replace('-', "_")))
         {
             Ok(t) => t,
@@ -65,7 +72,9 @@ fn collect_actions(config: &RuneConfig, path: &str) -> Result<Vec<IdleActionBloc
             _ => IdleAction::Custom,
         };
 
-        let resume_command = config.get::<String>(&format!("{}.{}.resume_command", path, key)).ok()
+        let resume_command = config
+            .get::<String>(&format!("{}.{}.resume_command", path, key))
+            .ok()
             .or_else(|| config.get::<String>(&format!("{}.{}.resume-command", path, key)).ok());
 
         actions.push(IdleActionBlock {
@@ -81,10 +90,51 @@ fn collect_actions(config: &RuneConfig, path: &str) -> Result<Vec<IdleActionBloc
     Ok(actions)
 }
 
+// --- new: layered config loading ---
+fn load_merged_config() -> Result<RuneConfig> {
+    let mut merged = RuneConfig::new();
+
+    // 1. Internal defaults (embedded)
+    if let Ok(internal) = RuneConfig::from_str(include_str!("../../assets/default.rune")) {
+        merged.merge(internal);
+    }
+
+    // 2. Shipped defaults (/usr/share/stasis/default.rune)
+    let share_path = PathBuf::from("/usr/share/stasis/default.rune");
+    if share_path.exists() {
+        if let Ok(shared) = RuneConfig::from_file(&share_path) {
+            merged.merge(shared);
+        }
+    }
+
+    // 3. System config (/etc/stasis/stasis.rune)
+    let sys_path = PathBuf::from("/etc/stasis/stasis.rune");
+    if sys_path.exists() {
+        if let Ok(system) = RuneConfig::from_file(&sys_path) {
+            merged.merge(system);
+        }
+    }
+
+    // 4. User config (~/.config/stasis/stasis.rune)
+    if let Some(mut user_path) = dirs::home_dir() {
+        user_path.push(".config/stasis/stasis.rune");
+        if user_path.exists() {
+            if let Ok(user) = RuneConfig::from_file(&user_path) {
+                merged.merge(user);
+            }
+        }
+    }
+
+    if merged.is_empty() {
+        return Err(eyre!("no valid configuration found in any location"));
+    }
+
+    Ok(merged)
+}
+
 // --- main loader ---
-pub fn load_config(path: &str) -> Result<StasisConfig> {
-    let config = RuneConfig::from_file(path)
-        .wrap_err_with(|| eyre!("failed to load Rune config from '{}'", path))?;
+pub fn load_config() -> Result<StasisConfig> {
+    let config = load_merged_config().wrap_err("failed to load layered configuration")?;
 
     let pre_suspend_command = config
         .get::<String>("stasis.pre_suspend_command")
@@ -94,85 +144,63 @@ pub fn load_config(path: &str) -> Result<StasisConfig> {
     let monitor_media = config
         .get::<bool>("stasis.monitor_media")
         .or_else(|_| config.get::<bool>("stasis.monitor-media"))
-        .or_else(|err| {
-            // only fallback if it's a "not found" error
-            if err.to_string().contains("not found") {
-                Ok(true)
-            } else {
-                Err(err)
-            }
-        })
-        .wrap_err("invalid value for 'stasis.monitor_media'")?;
+        .unwrap_or(true);
 
     let ignore_remote_media = config
         .get::<bool>("stasis.ignore_remote_media")
         .or_else(|_| config.get::<bool>("stasis.ignore-remote-media"))
-        .or_else(|err| {
-            if err.to_string().contains("not found") {
-                Ok(true)
-            } else {
-                Err(err)
-            }
-        })
-        .wrap_err("invalid value for 'stasis.ignore_remote_media'")?;
+        .unwrap_or(true);
 
     let respect_wayland_inhibitors = config
         .get::<bool>("stasis.respect_wayland_inhibitors")
         .or_else(|_| config.get::<bool>("stasis.respect-wayland-inhibitors"))
-        .or_else(|err| {
-            if err.to_string().contains("not found") {
-                Ok(true)
-            } else {
-                Err(err)
-            }
-        })
-        .wrap_err("invalid value for 'stasis.respect_wayland_inhibitors'")?;
+        .unwrap_or(true);
 
     let lid_close_action = config
-            .get::<String>("stasis.lid_close_action")
-            .or_else(|_| config.get::<String>("stasis.lid-close-action"))
-            .ok()
-            .map(|s| match s.as_str() {
-                "ignore" => LidCloseAction::Ignore,
-                "lock_screen" | "lock-screen" => LidCloseAction::LockScreen,
-                "suspend" => LidCloseAction::Suspend,
-                other if other.starts_with("custom:") => {
-                    LidCloseAction::Custom(other.trim_start_matches("custom:").trim().to_string())
-                }
-                _ => {
-                    log_message(&format!(
-                        "Unknown lid_close_action '{}', defaulting to ignore",
-                        s
-                    ));
-                    LidCloseAction::Ignore
-                }
-            })
-            .unwrap_or(LidCloseAction::Ignore);
+        .get::<String>("stasis.lid_close_action")
+        .or_else(|_| config.get::<String>("stasis.lid-close-action"))
+        .ok()
+        .map(|s| match s.as_str() {
+            "ignore" => LidCloseAction::Ignore,
+            "lock_screen" | "lock-screen" => LidCloseAction::LockScreen,
+            "suspend" => LidCloseAction::Suspend,
+            other if other.starts_with("custom:") => {
+                LidCloseAction::Custom(other.trim_start_matches("custom:").trim().to_string())
+            }
+            _ => {
+                log_message(&format!(
+                    "Unknown lid_close_action '{}', defaulting to ignore",
+                    s
+                ));
+                LidCloseAction::Ignore
+            }
+        })
+        .unwrap_or(LidCloseAction::Ignore);
 
     let lid_open_action = config
-            .get::<String>("stasis.lid_open_action")
-            .or_else(|_| config.get::<String>("stasis.lid-open-action"))
-            .ok()
-            .map(|s| match s.as_str() {
-                "ignore" => LidOpenAction::Ignore,
-                "wake" => LidOpenAction::Wake,
-                other if other.starts_with("custom:") => {
-                    LidOpenAction::Custom(other.trim_start_matches("custom:").trim().to_string())
-                }
-                _ => {
-                    log_message(&format!(
-                        "Unknown lid_close_action '{}', defaulting to ignore",
-                        s
-                    ));
-                    LidOpenAction::Ignore
-                }
-            })
-            .unwrap_or(LidOpenAction::Ignore);
+        .get::<String>("stasis.lid_open_action")
+        .or_else(|_| config.get::<String>("stasis.lid-open-action"))
+        .ok()
+        .map(|s| match s.as_str() {
+            "ignore" => LidOpenAction::Ignore,
+            "wake" => LidOpenAction::Wake,
+            other if other.starts_with("custom:") => {
+                LidOpenAction::Custom(other.trim_start_matches("custom:").trim().to_string())
+            }
+            _ => {
+                log_message(&format!(
+                    "Unknown lid_open_action '{}', defaulting to ignore",
+                    s
+                ));
+                LidOpenAction::Ignore
+            }
+        })
+        .unwrap_or(LidOpenAction::Ignore);
 
     let debounce_seconds = config
         .get::<u8>("stasis.debounce_seconds")
         .or_else(|_| config.get::<u8>("stasis.debounce-seconds"))
-        .unwrap_or(3u8);
+        .unwrap_or(0u8);
 
     let inhibit_apps: Vec<AppInhibitPattern> = config
         .get_value("stasis.inhibit_apps")
@@ -193,7 +221,6 @@ pub fn load_config(path: &str) -> Result<StasisConfig> {
         .unwrap_or_default();
 
     let chassis = detect_chassis();
-
     let actions = match chassis {
         ChassisKind::Laptop => {
             let mut all = Vec::new();
@@ -218,21 +245,14 @@ pub fn load_config(path: &str) -> Result<StasisConfig> {
     log_message(&format!("  pre_suspend_command = {:?}", pre_suspend_command));
     log_message(&format!("  monitor_media = {:?}", monitor_media));
     log_message(&format!("  ignore_remote_media = {:?}", ignore_remote_media));
-    log_message(&format!(
-        "  respect_wayland_inhibitors = {:?}",
-        respect_wayland_inhibitors
-    ));
+    log_message(&format!("  respect_wayland_inhibitors = {:?}", respect_wayland_inhibitors));
     log_message(&format!("  debounce_seconds = {:?}", debounce_seconds));
     log_message(&format!("  lid_close_action = {:?}", lid_close_action));
     log_message(&format!("  lid_open_action = {:?}", lid_open_action));
     log_message(&format!(
         "  inhibit_apps = [{}]",
-        inhibit_apps
-            .iter()
-            .map(|p| p.to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
-    ));   
+        inhibit_apps.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(", ")
+    ));
     log_message("  actions:");
     for action in &actions {
         let mut details = format!(
