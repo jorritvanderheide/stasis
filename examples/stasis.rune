@@ -11,11 +11,15 @@ stasis:
   pre_suspend_command "hyprlock"
   monitor_media true
   ignore_remote_media true
+  # Stasis allows you to define a list of media
+  # players that you want to be ignored when inhibiting
+  # media playback
+  #media_blacklist ["spotify"]
   respect_idle_inhibitors true
   #lid_close_action "lock-screen" (lock-screen | suspend | custom | ignore)
   #lid_open_action "wake" (wake | custom | ignore)
   # debounce: default is 3s; can be customized if needed
-  # debounce-seconds 4
+  #debounce-seconds 4
 
   inhibit_apps [
     "vlc"
