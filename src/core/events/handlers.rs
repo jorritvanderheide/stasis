@@ -16,6 +16,8 @@ pub enum Event {
     Resume,
     LidClosed,
     LidOpened,
+    LoginctlLock,
+    LoginctlUnlock,
 }
 
 pub async fn handle_event(manager: &Arc<Mutex<Manager>>, event: Event) {
@@ -140,6 +142,38 @@ pub async fn handle_event(manager: &Arc<Mutex<Manager>>, event: Event) {
                     }
                 }
             }
+        }
+
+        Event::LoginctlLock => {
+            let mut mgr = manager.lock().await;
+            log_message("loginctl lock-session received — triggering lock action...");
+
+            // Find and execute the lock screen action if it exists
+            if let Some(cfg) = &mgr.state.cfg {
+                if let Some(lock_action) = cfg.actions.iter().find(|a| a.kind == IdleAction::LockScreen).cloned() {
+                    // Run the lock action
+                    run_action(&mut mgr, &lock_action).await;
+                    
+                    // Advance past lock so subsequent actions (like DPMS/suspend) can trigger
+                    mgr.advance_past_lock().await;
+                    
+                    // Wake the lock watcher loop
+                    mgr.state.lock_notify.notify_waiters();
+                    wake_idle_tasks(&mgr.state);
+                } else {
+                    log_message("No lock screen action defined in config");
+                }
+            }
+        }
+
+        Event::LoginctlUnlock => {
+            let mut mgr = manager.lock().await;
+            log_message("loginctl unlock-session received — resetting state...");
+            
+            // Reset the manager state as if user activity occurred
+            mgr.reset().await;
+            mgr.state.lock_notify.notify_waiters();
+            wake_idle_tasks(&mgr.state);
         }
     }
 }

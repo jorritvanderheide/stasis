@@ -100,10 +100,84 @@ pub async fn listen_for_lid_events(idle_manager: Arc<Mutex<Manager>>) -> ZbusRes
     Ok(())
 }
 
-// Optional: Combined listener that handles both suspend and lid events
+pub async fn listen_for_lock_events(idle_manager: Arc<Mutex<Manager>>) -> ZbusResult<()> {
+    let connection = Connection::system().await?;
+    log_message("Listening for D-Bus lock/unlock events...");
+    
+    // Get the session path for the current session
+    let session_path = get_current_session_path(&connection).await?;
+    
+    log_message(&format!("Monitoring session: {}", session_path.as_str()));
+    
+    let proxy = Proxy::new(
+        &connection,
+        "org.freedesktop.login1",
+        session_path.clone(),
+        "org.freedesktop.login1.Session"
+    ).await?;
+    
+    // Listen for Lock signal
+    let mut lock_stream = proxy.receive_signal("Lock").await?;
+    let manager_for_lock = Arc::clone(&idle_manager);
+    
+    // Listen for Unlock signal
+    let mut unlock_stream = proxy.receive_signal("Unlock").await?;
+    let manager_for_unlock = Arc::clone(&idle_manager);
+    
+    // Spawn task for Lock signals
+    let lock_task = tokio::spawn(async move {
+        while let Some(_signal) = lock_stream.next().await {
+            log_message("Received Lock signal from loginctl");
+            handle_event(&manager_for_lock, Event::LoginctlLock).await;
+        }
+    });
+    
+    // Spawn task for Unlock signals
+    let unlock_task = tokio::spawn(async move {
+        while let Some(_signal) = unlock_stream.next().await {
+            log_message("Received Unlock signal from loginctl");
+            handle_event(&manager_for_unlock, Event::LoginctlUnlock).await;
+        }
+    });
+    
+    let _ = tokio::try_join!(lock_task, unlock_task);
+    Ok(())
+}
+
+async fn get_current_session_path(connection: &Connection) -> ZbusResult<zvariant::OwnedObjectPath> {
+    let proxy = Proxy::new(
+        connection,
+        "org.freedesktop.login1",
+        "/org/freedesktop/login1",
+        "org.freedesktop.login1.Manager"
+    ).await?;
+    
+    // Get the current user's UID
+    let uid = unsafe { libc::getuid() };
+    
+    // Call ListSessions to find our session
+    let sessions: Vec<(String, u32, String, String, zvariant::OwnedObjectPath)> = 
+        proxy.call("ListSessions", &()).await?;
+    
+    // Find the session that matches our UID and return its path
+    for (_session_id, session_uid, _username, _seat, path) in sessions {
+        if session_uid == uid {
+            return Ok(path);
+        }
+    }
+    
+    // Fallback: try to get the session from the PID
+    let pid = std::process::id();
+    let session_path: zvariant::OwnedObjectPath = proxy.call("GetSessionByPID", &(pid,)).await?;
+    
+    Ok(session_path)
+}
+
+// Combined listener that handles suspend, lid, and lock events
 pub async fn listen_for_power_events(idle_manager: Arc<Mutex<Manager>>) -> ZbusResult<()> {
     let suspend_manager = Arc::clone(&idle_manager);
     let lid_manager = Arc::clone(&idle_manager);
+    let lock_manager = Arc::clone(&idle_manager);
     
     let suspend_handle = tokio::spawn(async move {
         if let Err(e) = listen_for_suspend_events(suspend_manager).await {
@@ -117,6 +191,12 @@ pub async fn listen_for_power_events(idle_manager: Arc<Mutex<Manager>>) -> ZbusR
         }
     });
     
-    let _ = tokio::try_join!(suspend_handle, lid_handle);
+    let lock_handle = tokio::spawn(async move {
+        if let Err(e) = listen_for_lock_events(lock_manager).await {
+            log_message(&format!("Lock listener error: {e:?}"));
+        }
+    });
+    
+    let _ = tokio::try_join!(suspend_handle, lid_handle, lock_handle);
     Ok(())
 }
