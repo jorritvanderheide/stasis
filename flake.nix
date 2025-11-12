@@ -65,10 +65,18 @@
             inherit pkgs;
             stasis = stasis;
           };
+          default = import ./modules/nixos/stasis.nix {
+            inherit pkgs;
+            stasis = stasis;
+          };
         };
 
         homeManagerModules = {
           stasis = import ./modules/home/stasis.nix {
+            inherit pkgs;
+            stasis = stasis;
+          };
+          default = import ./modules/home/stasis.nix {
             inherit pkgs;
             stasis = stasis;
           };
