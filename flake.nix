@@ -2,72 +2,78 @@
   description = "Flake for the Stasis NixOS- and Home-Manager modules and development shell";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs =
-    { nixpkgs, flake-utils, ... }:
+  outputs = { self, nixpkgs, flake-utils, ... }:
     let
-      nixosModuleFn = import ./modules/nixos/stasis.nix;
-      homeModuleFn = import ./modules/home/stasis.nix;
-    in
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs { inherit system; };
+      # Top-level module files (keeps modules in separate locations)
+      nixosModuleFile = ./modules/nixos/stasis.nix;
+      homeModuleFile  = ./modules/home/stasis.nix;
 
-        stasis = pkgs.rustPlatform.buildRustPackage {
-          pname = "stasis";
-          version = "unstable";
-          src = ./.;
+      # Per-system outputs: packages, devShells, etc.
+      perSystem = flake-utils.lib.eachDefaultSystem (system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+        in
+        {
+          packages = {
+            stasis = pkgs.rustPlatform.buildRustPackage {
+              pname = "stasis";
+              version = "0.1.0";
+              src = ./.;
 
-          cargoLock = ./Cargo.lock;
+              # Use the repository Cargo.lock to avoid querying crates.io during the
+              # derivation evaluation step.
+              cargoLock = {
+                lockFile = ./Cargo.lock;
+              };
 
-          nativeBuildInputs = [ pkgs.pkg-config ];
-          buildInputs = [
-            pkgs.openssl
-            pkgs.zlib
-            pkgs.udev
-            pkgs.dbus
-            pkgs.libinput
-          ];
+              nativeBuildInputs = [ pkgs.pkg-config ];
+              buildInputs = [
+                pkgs.openssl
+                pkgs.zlib
+                pkgs.udev
+                pkgs.dbus
+                pkgs.libinput
+              ];
 
-          # optional optimization
-          RUSTFLAGS = "-C target-cpu=native";
-        };
-      in
-      {
-        packages.stasis = stasis;
-        defaultPackage = stasis;
-
-        devShells = {
-          default = pkgs.mkShell {
-            name = "stasis-devshell";
-            buildInputs = [
-              pkgs.rustc
-              pkgs.cargo
-              pkgs.openssl
-              pkgs.pkg-config
-              pkgs.git
-              pkgs.zlib
-            ];
-
-            RUSTFLAGS = "-C target-cpu=native";
-
-            shellHook = ''
-              echo "Entering stasis dev shell — run: cargo build, cargo run, or nix build .#stasis"
-            '';
+              RUSTFLAGS = "-C target-cpu=native";
+            };
           };
-        };
 
-        nixosModules.stasis = nixosModuleFn {
-          inherit pkgs stasis;
-        };
+          devShells = {
+            default = pkgs.mkShell {
+              name = "stasis-devshell";
+              buildInputs = [
+                pkgs.rustc
+                pkgs.cargo
+                pkgs.openssl
+                pkgs.pkg-config
+                pkgs.git
+                pkgs.zlib
+              ];
+              RUSTFLAGS = "-C target-cpu=native";
+              shellHook = ''
+                echo "Entering stasis dev shell — run: cargo build, cargo run, or nix build .#stasis"
+              '';
+            };
+          };
+        }
+      );
+    in
 
-        homeManagerModules.stasis = homeModuleFn {
-          inherit pkgs stasis;
-        };
-      }
-    );
+    # Merge per-system outputs with top-level module exports
+    (perSystem // {
+      nixosModules = {
+        stasis = import nixosModuleFile;
+        default = import nixosModuleFile;
+      };
+
+      homeModules = {
+        stasis = import homeModuleFile;
+        default = import homeModuleFile;
+      };
+    });
 }
