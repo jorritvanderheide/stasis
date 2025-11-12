@@ -1,7 +1,7 @@
 {
   config,
   lib,
-  stasis,
+  stasisPackage,
   ...
 }:
 
@@ -12,14 +12,14 @@ let
     mkIf
     getExe
     ;
-    
+
   cfg = config.services.stasis;
 in
 {
   options = {
     services.stasis = {
       enable = mkEnableOption "Stasis";
-      package = mkPackageOption stasis "stasis" { };
+      package = mkPackageOption stasisPackage "stasis" { };
     };
   };
 
