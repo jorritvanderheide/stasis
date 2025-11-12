@@ -1,5 +1,5 @@
 {
-  osConfig,
+  config,
   lib,
   ...
 }:
@@ -12,7 +12,7 @@ let
     types
     ;
 
-  cfg = osConfig.services.stasis;
+  cfg = config.services.stasis;
 in
 {
   options.services.stasis = {
