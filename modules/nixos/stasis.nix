@@ -27,13 +27,12 @@ in
     systemd.user.services.stasis = {
       enable = true;
 
-      Unit = {
-        Description = "Stasis Wayland Idle Manager";
-        After = [ "graphical-session.target" ];
-        Wants = [ "graphical-session.target" ];
-      };
+      description = "Stasis Wayland Idle Manager";
+      after = [ "graphical-session.target" ];
+      wants = [ "graphical-session.target" ];
+      wantedBy = [ "default.target" ];
 
-      Service = {
+      serviceConfig = {
         Type = "simple";
         ExecStart = "${getExe cfg.package}";
         Restart = "always";
@@ -41,10 +40,6 @@ in
         Environment = "WAYLAND_DISPLAY=wayland-0";
 
         ExecStartPre = "/bin/sh -c 'while [ ! -e /run/user/%U/wayland-0 ]; do sleep 0.1; done'";
-      };
-
-      Install = {
-        WantedBy = [ "default.target" ];
       };
     };
   };
