@@ -139,7 +139,7 @@ in
   };
 
   config = mkIf cfg.enable {
-    xdg.configFile."stasis/config.rune".text = mkIf (cfg.config != null) {
+    xdg.configFile."stasis/config.rune" = mkIf (cfg.config != null) {
       text = cfg.config;
     };
   };
