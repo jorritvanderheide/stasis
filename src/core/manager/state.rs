@@ -346,7 +346,16 @@ impl LockState {
         // Find the first LockScreen action (there should usually be one)
         let lock_action = cfg.actions.iter().find(|a| a.kind == IdleAction::LockScreen);
 
-        let command = lock_action.map(|a| a.command.clone());
+        let command = lock_action.map(|a| {
+            // If lock_command is set, check for that process (hyprlock, etc)
+            // Otherwise check for the regular command process
+            if let Some(ref lock_cmd) = a.lock_command {
+                lock_cmd.clone()
+            } else {
+                a.command.clone()
+            }
+        });
+
 
         Self {
             is_locked: false,

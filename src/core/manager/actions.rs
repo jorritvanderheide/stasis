@@ -23,7 +23,15 @@ pub async fn prepare_action(action: &IdleActionBlock) -> Vec<ActionRequest> {
             }
         }
         IdleAction::LockScreen => {
-            let probe_cmd = &action.command;
+            // Check the actual lock process, not the trigger command
+            let probe_cmd = if let Some(ref lock_cmd) = action.lock_command {
+                // If lock_command is set, check for that process
+                lock_cmd
+            } else {
+                // Otherwise check for the regular command
+                &action.command
+            };
+            
             if is_process_running(probe_cmd).await {
                 log_message("Lockscreen already running, skipping action.");
                 vec![ActionRequest::Skip(probe_cmd.to_string())]

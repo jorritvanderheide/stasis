@@ -75,12 +75,22 @@ fn collect_actions(config: &RuneConfig, path: &str) -> Result<Vec<IdleActionBloc
             .ok()
             .or_else(|| config.get::<String>(&format!("{}.{}.resume-command", path, key)).ok());
 
+        let lock_command = if kind == IdleAction::LockScreen {
+            config
+                .get::<String>(&format!("{}.{}.lock_command", path, key))
+                .ok()
+                .or_else(|| config.get::<String>(&format!("{}.{}.lock-command", path, key)).ok())
+        } else {
+            None
+        };
+
         actions.push(IdleActionBlock {
             name: key.clone(),
             timeout,
             command,
             kind,
             resume_command,
+            lock_command,
             last_triggered: None,
         });
     }

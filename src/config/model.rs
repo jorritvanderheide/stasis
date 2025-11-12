@@ -29,6 +29,7 @@ pub struct IdleActionBlock {
     pub command: String,
     pub kind: IdleAction,
     pub resume_command: Option<String>,
+    pub lock_command: Option<String>,
     pub last_triggered: Option<Instant>,
 }
 
@@ -39,6 +40,14 @@ impl IdleActionBlock {
     
     pub fn has_resume_command(&self) -> bool {
         self.resume_command.is_some()
+    }
+
+    pub fn get_lock_command(&self) -> &str {
+        if self.command == "loginctl lock-session" {
+            self.lock_command.as_deref().unwrap_or(&self.command)
+        } else {
+            &self.command
+        }
     }
 }
 

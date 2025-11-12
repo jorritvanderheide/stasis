@@ -216,13 +216,29 @@ pub async fn run_action(mgr: &mut Manager, action: &IdleActionBlock) {
 pub async fn run_command_for_action(mgr: &mut Manager, action: &IdleActionBlock, cmd: String) {
     let is_lock = matches!(action.kind, crate::config::model::IdleAction::LockScreen);
     if is_lock {
-        match run_command_detached(&cmd).await {
+        // Determine which command to actually run
+        let lock_cmd = if action.lock_command.is_some() {
+            // If lock_command is set, run loginctl and then the lock_command
+            log_message("Running loginctl lock-session (lock_command is configured)");
+            match run_command_detached("loginctl lock-session").await {
+                Ok(_) => log_message("loginctl lock-session executed"),
+                Err(e) => log_error_message(&format!("Failed to run loginctl lock-session: {}", e)),
+            }
+            
+            // Then run the actual lock_command
+            action.lock_command.as_ref().unwrap().clone()
+        } else {
+            // No lock_command set, just run the regular command (hyprlock, etc.)
+            cmd
+        };
+
+        match run_command_detached(&lock_cmd).await {
             Ok(pid) => {
                 mgr.state.lock_state.pid = Some(pid);
                 mgr.state.lock_state.is_locked = true;
                 log_message(&format!("Lock screen started with PID {}", pid));
             }
-            Err(e) => log_message(&format!("Failed to run lock command '{}': {}", cmd, e)),
+            Err(e) => log_message(&format!("Failed to run lock command '{}': {}", lock_cmd, e)),
         }
     } else {
         let spawned = tokio::spawn(async move {

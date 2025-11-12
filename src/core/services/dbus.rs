@@ -152,25 +152,83 @@ async fn get_current_session_path(connection: &Connection) -> ZbusResult<zvarian
         "org.freedesktop.login1.Manager"
     ).await?;
     
-    // Get the current user's UID
-    let uid = unsafe { libc::getuid() };
+    // Method 1: Try XDG_SESSION_ID environment variable (most reliable for graphical sessions)
+    if let Ok(session_id) = std::env::var("XDG_SESSION_ID") {
+        log_message(&format!("Attempting to use XDG_SESSION_ID: {}", session_id));
+        let result: Result<zvariant::OwnedObjectPath, zbus::Error> = proxy.call("GetSession", &(session_id.as_str(),)).await;
+        match result {
+            Ok(path) => {
+                log_message(&format!("Using session from XDG_SESSION_ID: {}", path.as_str()));
+                return Ok(path);
+            }
+            Err(e) => {
+                log_message(&format!("XDG_SESSION_ID lookup failed: {}, trying other methods", e));
+            }
+        }
+    }
     
-    // Call ListSessions to find our session
+    // Method 2: Find the active graphical session for current UID
+    let uid = unsafe { libc::getuid() };
+    log_message(&format!("Looking for sessions with UID: {}", uid));
+    
     let sessions: Vec<(String, u32, String, String, zvariant::OwnedObjectPath)> = 
         proxy.call("ListSessions", &()).await?;
     
-    // Find the session that matches our UID and return its path
-    for (_session_id, session_uid, _username, _seat, path) in sessions {
+    // First pass: try to find an active graphical session on seat0
+    for (session_id, session_uid, username, seat, path) in &sessions {
+        if *session_uid == uid {
+            log_message(&format!(
+                "Found session '{}' for user '{}' (UID {}) on seat '{}'",
+                session_id, username, session_uid, seat
+            ));
+            
+            // Check if this is a graphical session
+            if let Ok(session_proxy) = Proxy::new(
+                connection,
+                "org.freedesktop.login1",
+                path.clone(),
+                "org.freedesktop.login1.Session"
+            ).await {
+                if let Ok(session_type) = session_proxy.get_property::<String>("Type").await {
+                    log_message(&format!("Session '{}' type: {}", session_id, session_type));
+                    
+                    // Prefer wayland or x11 sessions on seat0
+                    if (session_type == "wayland" || session_type == "x11") && seat == "seat0" {
+                        log_message(&format!(
+                            "Selected graphical session '{}' (type: {}, seat: {})",
+                            session_id, session_type, seat
+                        ));
+                        return Ok(path.clone());
+                    }
+                }
+            }
+        }
+    }
+    
+    // Second pass: just use the first session matching our UID
+    for (session_id, session_uid, _username, _seat, path) in sessions {
         if session_uid == uid {
+            log_message(&format!("Using first available session '{}' for UID {}", session_id, uid));
             return Ok(path);
         }
     }
     
-    // Fallback: try to get the session from the PID
+    // Method 3: Fallback to PID method (least reliable)
+    log_message("No session found by UID, trying PID method");
     let pid = std::process::id();
-    let session_path: zvariant::OwnedObjectPath = proxy.call("GetSessionByPID", &(pid,)).await?;
-    
-    Ok(session_path)
+    let result: Result<zvariant::OwnedObjectPath, zbus::Error> = proxy.call("GetSessionByPID", &(pid,)).await;
+    match result {
+        Ok(path) => {
+            log_message(&format!("Using session from PID {}: {}", pid, path.as_str()));
+            Ok(path)
+        }
+        Err(e) => {
+            Err(zbus::fdo::Error::Failed(format!(
+                "Could not find current session (tried XDG_SESSION_ID, UID match, and PID): {}",
+                e
+            )))
+        }
+    }
 }
 
 // Combined listener that handles suspend, lid, and lock events
