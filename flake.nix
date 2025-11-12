@@ -60,7 +60,7 @@
             inherit pkgs stasis;
           };
 
-          homeManagerModules.stasis = import homeModuleFile {
+          homeModules.stasis = import homeModuleFile {
             inherit pkgs stasis;
           };
         }
