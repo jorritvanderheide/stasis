@@ -64,7 +64,7 @@
           }:
           import ./modules/nixos/stasis.nix {
             inherit config pkgs lib;
-            stasisPackage = self.packages.${system}.fum;
+            stasisPackage = self.packages.${system}.stasis;
           };
           
         homeModules.stasis = import ./modules/home/stasis.nix;
