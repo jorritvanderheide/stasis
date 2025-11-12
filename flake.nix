@@ -1,5 +1,5 @@
 {
-  description = "Flake for Stasis: builds the binary and provides a home-manager service";
+  description = "Flake for the Stasis NixOS- and Home-Manager modules and development shell";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -47,7 +47,7 @@
 
         # NixOS module
         nixosModules = {
-          nirinit =
+          stasis =
             {
               config,
               pkgs,
@@ -61,7 +61,7 @@
                 mkIf
                 getExe
                 ;
-              cfg = config.services.nirinit;
+              cfg = config.services.stasis;
             in
             {
               options = {
@@ -104,7 +104,7 @@
 
         # Home-manager module
         homeModules = {
-          nirinit =
+          stasis =
             {
               osConfig,
               pkgs,
