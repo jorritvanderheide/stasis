@@ -1,5 +1,4 @@
 {
-  self,
   config,
   pkgs,
   lib,
@@ -19,7 +18,7 @@ in
   options = {
     services.stasis = {
       enable = mkEnableOption "Stasis";
-      package = mkPackageOption (lib.getAttrFromPath [ "packages" pkgs.system ] self) "stasis" { };
+      package = mkPackageOption pkgs.stasis "stasis" { };
     };
   };
 
