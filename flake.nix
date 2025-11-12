@@ -8,6 +8,10 @@
 
   outputs =
     { nixpkgs, flake-utils, ... }:
+    let
+      nixosModuleFn = import ./modules/nixos/stasis.nix;
+      homeModuleFn = import ./modules/home/stasis.nix;
+    in
     flake-utils.lib.eachDefaultSystem (
       system:
       let
@@ -34,10 +38,7 @@
         };
       in
       {
-        packages = {
-          stasis = stasis;
-        };
-
+        packages.stasis = stasis;
         defaultPackage = stasis;
 
         devShells = {
@@ -60,26 +61,12 @@
           };
         };
 
-        nixosModules = {
-          stasis = import ./modules/nixos/stasis.nix {
-            inherit pkgs;
-            stasis = stasis;
-          };
-          default = import ./modules/nixos/stasis.nix {
-            inherit pkgs;
-            stasis = stasis;
-          };
+        nixosModules.stasis = nixosModuleFn {
+          inherit pkgs stasis;
         };
 
-        homeManagerModules = {
-          stasis = import ./modules/home/stasis.nix {
-            inherit pkgs;
-            stasis = stasis;
-          };
-          default = import ./modules/home/stasis.nix {
-            inherit pkgs;
-            stasis = stasis;
-          };
+        homeManagerModules.stasis = homeModuleFn {
+          inherit pkgs stasis;
         };
       }
     );

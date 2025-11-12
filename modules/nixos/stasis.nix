@@ -12,6 +12,7 @@ let
     mkIf
     getExe
     ;
+    
   cfg = config.services.stasis;
 in
 {
