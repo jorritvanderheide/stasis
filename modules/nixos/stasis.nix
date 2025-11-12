@@ -1,7 +1,7 @@
 {
   config,
-  pkgs,
   lib,
+  stasis,
   ...
 }:
 
@@ -13,8 +13,6 @@ let
     getExe
     ;
   cfg = config.services.stasis;
-  flake = builtins.getFlake (toString ../..);
-  stasis = flake.packages.${pkgs.system}.stasis;
 in
 {
   options = {

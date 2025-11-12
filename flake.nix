@@ -19,37 +19,36 @@
         system:
         let
           pkgs = import nixpkgs { inherit system; };
+
+          stasisPkg = pkgs.rustPlatform.buildRustPackage {
+            pname = "stasis";
+            version = "unstable";
+            src = ./.;
+
+            # Use the repository Cargo.lock to avoid querying crates.io during the
+            # derivation evaluation step.
+            cargoLock = {
+              lockFile = ./Cargo.lock;
+            };
+
+            # Dependencies required at build/runtime
+            nativeBuildInputs = [ pkgs.pkg-config ];
+            buildInputs = [
+              pkgs.openssl
+              pkgs.zlib
+              pkgs.udev
+              pkgs.dbus
+              pkgs.libinput
+            ];
+
+            # Optionally set RUSTFLAGS or other env vars
+            RUSTFLAGS = "-C target-cpu=native";
+          };
         in
         {
-          packages = {
-            stasis = pkgs.rustPlatform.buildRustPackage {
-              pname = "stasis";
-              version = "unstable";
-              src = ./.;
+          packages.stasis = stasisPkg;
 
-              # Use the repository Cargo.lock to avoid querying crates.io during the
-              # derivation evaluation step.
-              cargoLock = {
-                lockFile = ./Cargo.lock;
-              };
-
-              # Dependencies required at build/runtime
-              nativeBuildInputs = [ pkgs.pkg-config ];
-              buildInputs = [
-                pkgs.openssl
-                pkgs.zlib
-                pkgs.udev
-                pkgs.dbus
-                pkgs.libinput
-              ];
-
-              # Optionally set RUSTFLAGS or other env vars
-              RUSTFLAGS = "-C target-cpu=native";
-            };
-          };
-
-          # Not much testing done here, feel free to change if needed.
-          # Developer shell: rustc, cargo, openssl, pkg-config and git
+          # Developer shell
           devShells = {
             default = pkgs.mkShell {
               name = "stasis-devshell";
@@ -67,23 +66,26 @@
               '';
             };
           };
+
+          nixosModules = {
+            stasis = import nixosModuleFile {
+              inherit pkgs;
+              stasis = stasisPkg;
+            };
+            default = import nixosModuleFile {
+              inherit pkgs;
+              stasis = stasisPkg;
+            };
+          };
+
+          homeModules = {
+            stasis = import homeModuleFile;
+            default = import homeModuleFile;
+          };
         }
       );
     in
 
-    # Merge per-system outputs with top-level module exports
-    (
-      perSystem
-      // {
-        nixosModules = {
-          stasis = import nixosModuleFile;
-          default = import nixosModuleFile;
-        };
-
-        homeModules = {
-          stasis = import homeModuleFile;
-          default = import homeModuleFile;
-        };
-      }
-    );
+    # Use the per-system outputs
+    perSystem;
 }
