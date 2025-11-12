@@ -17,7 +17,6 @@
   <a href="https://discord.gg/v6gxRDjn">👉 Click here to join the community</a>
 </p>
 
-
 <p align="center">
   <img src="https://img.shields.io/github/last-commit/saltnpepper97/stasis?style=for-the-badge&color=%2328A745" alt="GitHub last commit"/>
   <img src="https://img.shields.io/aur/version/stasis?style=for-the-badge" alt="AUR version">
@@ -56,12 +55,11 @@ Stasis doesn't just lock your screen after a timer—it understands context. Wat
 
 ### Complete
 
-- [x] **Sequential action blocks** – Action blocks run in the exact order defined in your config. Stasis maintains an internal index to track progress, making execution smarter and more reliable.  
-- [x] **Lock-centric design** – When a `lock-screen` action block is present and properly configured, Stasis tracks the PID of the command it executes to ensure the sequence stays intact.  
-- [x] **Resume-command support** – Each action block can run an optional follow-up command after completion.  
-- [x] **Event-driven, minimal polling** – Stasis now relies primarily on two internal loops that notify others to wake from deep sleep, significantly reducing CPU and memory usage at idle.  
-- [x] **CLI per-state triggers** – Trigger a **specific state**, the **current state**, or **all states**, all while respecting previously completed actions.  
-
+- [x] **Sequential action blocks** – Action blocks run in the exact order defined in your config. Stasis maintains an internal index to track progress, making execution smarter and more reliable.
+- [x] **Lock-centric design** – When a `lock-screen` action block is present and properly configured, Stasis tracks the PID of the command it executes to ensure the sequence stays intact.
+- [x] **Resume-command support** – Each action block can run an optional follow-up command after completion.
+- [x] **Event-driven, minimal polling** – Stasis now relies primarily on two internal loops that notify others to wake from deep sleep, significantly reducing CPU and memory usage at idle.
+- [x] **CLI per-state triggers** – Trigger a **specific state**, the **current state**, or **all states**, all while respecting previously completed actions.
 
 ### In Progress
 
@@ -72,7 +70,6 @@ Stasis doesn't just lock your screen after a timer—it understands context. Wat
 - [ ] **Custom notifications** – display alerts for idle events or action execution.
 - [ ] **Logging & analytics** – historical idle data for power/performance insights.
 - [ ] **Power-saving optimizations** – CPU/GPU-aware idle handling.
-
 
 ## 📦 Installation
 
@@ -89,6 +86,7 @@ yay -S stasis-git
 ```
 
 Works with `paru` too:
+
 ```bash
 paru -S stasis
 ```
@@ -113,30 +111,31 @@ nix build 'github:saltnpepper97/stasis#stasis'
   your outputs or NixOS configuration. Example (snippet):
 
 ```nix
-inputs = {
-  nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-  stasis.url = "github:saltnpepper97/stasis";
-};
+{
+  inputs.stasis = {
+    url = "github:saltnpepper97/stasis";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
 
-outputs = { self, nixpkgs, ... }:
-let
-  system = "x86_64-linux"; # adjust for your host
-in {
-  # reference the stasis package from the stasis flake
-  packages.${system}.my-stasis = self.inputs.stasis.packages.${system}.stasis;
+  # In your NixOS configuration:
+  imports = [ stasis.nixosModules.stasis ];
 
-  # Or add it to a NixOS configuration
-  nixosConfigurations.<host> = nixpkgs.lib.nixosSystem {
-    inherit system;
-    modules = [ ./configuration.nix ];
-    configuration = {
-      environment.systemPackages = [ self.inputs.stasis.packages.${system}.stasis ];
-    };
+  services.nirinit.enable = true;
+
+  # In your Home Manager configuration:
+  imports = [ stasis.homeModules.stasis ];
+
+  services.stasis = {
+    enable = true;
+    config = ''
+      # RUNE config
+    '';
   };
 }
 ```
 
 Notes:
+
 - please know this i am a complete noob in nix and flakes, so updates and fixes will be appreciated! --CamRed25
 
 ### From Source
@@ -161,20 +160,19 @@ install -Dm755 target/release/stasis ~/.local/bin/stasis
 Get up and running in just a few minutes!  
 See the [Quick Start Guide](https://github.com/saltnpepper97/stasis/wiki#quick-start) in the Wiki for setup instructions, including how to ensure your user is in the `input` group.
 
-
 For configuration examples, CLI options, and advanced usage, visit the [full documentation](https://github.com/saltnpepper97/stasis/wiki).
 
 ## Compositor Support
 
 Stasis integrates with each compositor's native IPC protocol for optimal app detection and inhibition.
 
-| Compositor | Support Status | Notes |
-|------------|---------------|-------|
-| **Niri** | ✅ Full Support | Tested and working perfectly |
-| **Hyprland** | ✅ Full Support | Native IPC integration |
-| **labwc** | ⚠️ Limited | Process-based fallback (details below) |
-| **River** | ⚠️ Limited | Process-based fallback (details below) |
-| **Your Favorite** | 🤝 PRs Welcome | Help us expand support! |
+| Compositor        | Support Status  | Notes                                  |
+| ----------------- | --------------- | -------------------------------------- |
+| **Niri**          | ✅ Full Support | Tested and working perfectly           |
+| **Hyprland**      | ✅ Full Support | Native IPC integration                 |
+| **labwc**         | ⚠️ Limited      | Process-based fallback (details below) |
+| **River**         | ⚠️ Limited      | Process-based fallback (details below) |
+| **Your Favorite** | 🤝 PRs Welcome  | Help us expand support!                |
 
 ### 📌 River & labwc Compatibility Notes
 
@@ -191,7 +189,7 @@ Both River and labwc have IPC protocol limitations that affect Stasis functional
 We welcome contributions! Adding support typically involves:
 
 1. Implementing the compositor's native IPC protocol
-2. Adding window/app detection functionality  
+2. Adding window/app detection functionality
 3. Testing with common applications
 
 Check existing implementations in the codebase for reference, and don't hesitate to open an issue if you need guidance.
@@ -201,6 +199,7 @@ Check existing implementations in the codebase for reference, and don't hesitate
 Stasis uses **[RUNE](https://github.com/saltnpepper97/rune-cfg)**—a purpose-built configuration language that's both powerful and approachable.
 
 **Why RUNE?**
+
 - 📖 **Human-readable:** Clean syntax that makes sense at a glance
 - 🔢 **Variables:** Define once, reference anywhere
 - 🎯 **Type-safe:** Catch configuration errors before runtime

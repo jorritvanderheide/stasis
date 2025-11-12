@@ -13,12 +13,14 @@ let
     getExe
     ;
   cfg = config.services.stasis;
+  flake = builtins.getFlake (toString ../..);
+  stasis = flake.packages.${pkgs.system}.stasis;
 in
 {
   options = {
     services.stasis = {
       enable = mkEnableOption "Stasis";
-      package = mkPackageOption pkgs.stasis "stasis" { };
+      package = mkPackageOption stasis "stasis" { };
     };
   };
 
