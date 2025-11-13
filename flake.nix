@@ -19,26 +19,34 @@
         pkgs = import nixpkgs { inherit system; };
       in
       {
-        packages.${system}.stasis = pkgs.rustPlatform.buildRustPackage {
-          pname = "stasis";
-          version = "unstable";
-          src = ./.;
-          cargoLock = {
-            lockFile = ./Cargo.lock;
+        packages = {
+          stasis = pkgs.rustPlatform.buildRustPackage {
+            pname = "stasis";
+            version = "unstable";
+            src = ./.;
+
+            cargoLock = {
+              lockFile = ./Cargo.lock;
+            };
+
+            nativeBuildInputs = [ pkgs.pkg-config ];
+            buildInputs = [
+              pkgs.openssl
+              pkgs.zlib
+              pkgs.udev
+              pkgs.dbus
+              pkgs.libinput
+            ];
+
+            RUSTFLAGS = "-C target-cpu=native";
           };
-          nativeBuildInputs = [ pkgs.pkg-config ];
-          buildInputs = [
-            pkgs.openssl
-            pkgs.zlib
-            pkgs.udev
-            pkgs.dbus
-            pkgs.libinput
-          ];
-          RUSTFLAGS = "-C target-cpu=native";
+
+          default = self.packages.${system}.stasis;
         };
 
-        devShells.${system}.default = pkgs.mkShell {
+        devShells.default = pkgs.mkShell {
           name = "stasis-devshell";
+
           buildInputs = [
             pkgs.rustc
             pkgs.cargo
@@ -47,31 +55,34 @@
             pkgs.git
             pkgs.zlib
           ];
+
           RUSTFLAGS = "-C target-cpu=native";
+
           shellHook = ''
-            echo "Entering stasis dev shell — run: cargo build, cargo run, or nix build .#packages.${system}.stasis"
+            echo "Entering stasis dev shell — run: cargo build, cargo run, or nix build .#stasis"
           '';
         };
+
       }
     )
     // {
+      nixosModules.stasis =
+        {
+          self,
+          config,
+          pkgs,
+          lib,
+          ...
+        }:
+        import ./modules/nixos/stasis.nix {
+          inherit
+            config
+            pkgs
+            lib
+            ;
+          stasisPackage = self.packages.${pkgs.system}.stasis;
+        };
 
-      nixosModules = {
-        stasis =
-          {
-            config,
-            lib,
-            pkgs,
-            ...
-          }:
-          (import ./modules/nixos/stasis.nix) {
-            inherit config lib pkgs;
-            flake = self;
-          };
-      };
-
-      homeModules = {
-        stasis = (import ./modules/home/stasis.nix);
-      };
+      homeModules.stasis = import ./modules/home/stasis.nix;
     };
 }

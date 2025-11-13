@@ -1,10 +1,10 @@
 {
-  flake,
-  lib,
-  pkgs,
   config,
+  lib,
+  stasisPackage,
   ...
 }:
+
 let
   inherit (lib)
     mkEnableOption
@@ -12,14 +12,14 @@ let
     mkIf
     getExe
     ;
-
+    
   cfg = config.services.stasis;
 in
 {
   options = {
     services.stasis = {
       enable = mkEnableOption "Stasis";
-      package = mkPackageOption flake.packages.${pkgs.system}.stasis "stasis" { };
+      package = mkPackageOption stasisPackage "stasis" { };
     };
   };
 
