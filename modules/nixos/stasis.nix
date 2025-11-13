@@ -1,5 +1,10 @@
-{ self, ... }:
-{ pkgs, config, lib, ... }:
+{
+  flake,
+  lib,
+  pkgs,
+  config,
+  ...
+}:
 let
   inherit (lib)
     mkEnableOption
@@ -14,7 +19,7 @@ in
   options = {
     services.stasis = {
       enable = mkEnableOption "Stasis";
-      package = mkPackageOption self.packages.${pkgs.system}.stasis "stasis" { };
+      package = mkPackageOption flake.packages.${pkgs.system}.stasis "stasis" { };
     };
   };
 
