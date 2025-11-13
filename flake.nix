@@ -18,15 +18,19 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
+        # Pure Nix build using buildRustPackage. This is hermetic and CI-friendly.
         stasis = pkgs.rustPlatform.buildRustPackage {
           pname = "stasis";
           version = "unstable";
           src = ./.;
 
+          # Use the repository Cargo.lock to avoid querying crates.io during the
+          # derivation evaluation step.
           cargoLock = {
             lockFile = ./Cargo.lock;
           };
 
+          # Dependencies required at build/runtime
           nativeBuildInputs = [ pkgs.pkg-config ];
           buildInputs = [
             pkgs.openssl
@@ -36,6 +40,7 @@
             pkgs.libinput
           ];
 
+          # Optionally set RUSTFLAGS or other env vars
           RUSTFLAGS = "-C target-cpu=native";
 
           meta = with pkgs.lib; {
@@ -50,9 +55,9 @@
         packages = {
           stasis = stasis;
           default = stasis;
-          # default = self.packages.${system}.stasis;
         };
 
+        # Developer shell: rustc, cargo, openssl, pkg-config and git
         devShells.default = pkgs.mkShell {
           name = "stasis-devshell";
 
@@ -75,6 +80,7 @@
       }
     )
     // {
+      # NixOS module for running the service
       nixosModules.stasis =
         {
           config,
@@ -91,6 +97,7 @@
             ;
         };
 
+      # Home-manager module for configuration
       homeModules.stasis = import ./modules/home/stasis.nix;
     };
 }

@@ -25,13 +25,11 @@ in
   };
 
   config = mkIf cfg.enable {
-    systemd.user.services.stasis = {
-      enable = true;
-
+    systemd.services."stasis" = {
       description = "Stasis Wayland Idle Manager";
       after = [ "graphical-session.target" ];
       wants = [ "graphical-session.target" ];
-      wantedBy = [ "default.target" ];
+      wantedBy = [ "multi-user.target" ];
 
       serviceConfig = {
         Type = "simple";
@@ -40,6 +38,7 @@ in
         RestartSec = "5";
         Environment = "WAYLAND_DISPLAY=wayland-0";
 
+        # Optional
         ExecStartPre = "/bin/sh -c 'while [ ! -e /run/user/%U/wayland-0 ]; do sleep 0.1; done'";
       };
     };
