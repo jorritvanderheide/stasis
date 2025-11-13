@@ -66,21 +66,11 @@
       }
     )
     // {
-      nixosModules.stasis =
-        {
-          config,
-          pkgs,
-          lib,
-          ...
-        }:
-        import ./modules/nixos/stasis.nix {
-          inherit
-            self
-            config
-            pkgs
-            lib
-            ;
-        };
+      nixosModules.stasis = import ./modules/nixos/stasis.nix {
+        inherit
+          self
+          ;
+      };
 
       homeModules.stasis = import ./modules/home/stasis.nix;
     };
