@@ -58,9 +58,14 @@
 
       nixosModules = {
         stasis =
-          { lib, pkgs, ... }:
+          {
+            config,
+            lib,
+            pkgs,
+            ...
+          }:
           (import ./modules/nixos/stasis.nix) {
-            inherit lib pkgs;
+            inherit config lib pkgs;
             flake = self;
           };
       };
