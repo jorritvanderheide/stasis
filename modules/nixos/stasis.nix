@@ -25,6 +25,10 @@ in
   };
 
   config = mkIf cfg.enable {
+    environment.systemPackages = [
+      cfg.package
+    ];
+
     systemd.user.services."stasis" = {
       description = "Stasis Wayland Idle Manager";
       after = [ "graphical-session.target" ];
