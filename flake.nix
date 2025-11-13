@@ -21,7 +21,7 @@
         # Pure Nix build using buildRustPackage. This is hermetic and CI-friendly.
         stasis = pkgs.rustPlatform.buildRustPackage {
           pname = "stasis";
-          version = "unstable";
+          version = "0.6.1";
           src = ./.;
 
           # Use the repository Cargo.lock to avoid querying crates.io during the
