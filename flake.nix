@@ -79,15 +79,14 @@
         {
           config,
           lib,
-          pkgs,
           ...
         }:
         import ./modules/nixos/stasis.nix {
           inherit
+            self
             config
             lib
             ;
-          pkgs = self.packages.${pkgs.system};
         };
 
       homeModules.stasis = import ./modules/home/stasis.nix;
