@@ -34,7 +34,7 @@ in
 
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${getExe cfg.package}";
+        ExecStart = "${getExe stasisPackage}";
         Restart = "always";
         RestartSec = "5";
         Environment = "WAYLAND_DISPLAY=wayland-0";
