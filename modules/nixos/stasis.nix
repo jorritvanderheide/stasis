@@ -37,9 +37,6 @@ in
         Restart = "always";
         RestartSec = "5";
         Environment = "WAYLAND_DISPLAY=wayland-0";
-
-        # Optional: wait until WAYLAND_DISPLAY exists
-        ExecStartPre = "/bin/sh -c 'while [ ! -e /run/user/%U/wayland-0 ]; do sleep 0.1; done'";
       };
     };
   };
