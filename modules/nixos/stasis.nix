@@ -1,7 +1,8 @@
 {
+  self,
   config,
   lib,
-  stasisPackage,
+  pkgs,
   ...
 }:
 
@@ -19,7 +20,7 @@ in
   options = {
     services.stasis = {
       enable = mkEnableOption "Stasis";
-      package = mkPackageOption stasisPackage "stasis" { };
+      package = mkPackageOption self.packages.${pkgs.system}.stasis "stasis" { };
     };
   };
 
