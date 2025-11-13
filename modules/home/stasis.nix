@@ -28,9 +28,6 @@ in
         `~/.config/stasis/config.rune`.
       '';
       example = ''
-        @author "Dustin Pilgrim"
-        @description "Stasis configuration file"
-
         # Default timeout for apps (in seconds)
         app_default_timeout 300
 
