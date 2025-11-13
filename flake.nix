@@ -77,7 +77,6 @@
         import ./modules/nixos/stasis.nix {
           inherit
             config
-            pkgs
             lib
             ;
           stasisPackage = self.packages.${pkgs.system}.stasis;
