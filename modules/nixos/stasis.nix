@@ -1,7 +1,7 @@
 {
   config,
   lib,
-  stasisPackage,
+  pkgs,
   ...
 }:
 
@@ -12,14 +12,14 @@ let
     mkIf
     getExe
     ;
-    
+
   cfg = config.services.stasis;
 in
 {
   options = {
     services.stasis = {
       enable = mkEnableOption "Stasis";
-      package = mkPackageOption stasisPackage "stasis" { };
+      package = mkPackageOption pkgs "stasis" { default = [ "stasis" ]; };
     };
   };
 
@@ -34,7 +34,7 @@ in
 
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${getExe stasisPackage}";
+        ExecStart = "${getExe cfg.package}";
         Restart = "always";
         RestartSec = "5";
         Environment = "WAYLAND_DISPLAY=wayland-0";

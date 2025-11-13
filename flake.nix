@@ -19,25 +19,32 @@
         pkgs = import nixpkgs { inherit system; };
 
         stasis = pkgs.rustPlatform.buildRustPackage {
-            pname = "stasis";
-            version = "unstable";
-            src = ./.;
+          pname = "stasis";
+          version = "unstable";
+          src = ./.;
 
-            cargoLock = {
-              lockFile = ./Cargo.lock;
-            };
-
-            nativeBuildInputs = [ pkgs.pkg-config ];
-            buildInputs = [
-              pkgs.openssl
-              pkgs.zlib
-              pkgs.udev
-              pkgs.dbus
-              pkgs.libinput
-            ];
-
-            RUSTFLAGS = "-C target-cpu=native";
+          cargoLock = {
+            lockFile = ./Cargo.lock;
           };
+
+          nativeBuildInputs = [ pkgs.pkg-config ];
+          buildInputs = [
+            pkgs.openssl
+            pkgs.zlib
+            pkgs.udev
+            pkgs.dbus
+            pkgs.libinput
+          ];
+
+          RUSTFLAGS = "-C target-cpu=native";
+
+          meta = with pkgs.lib; {
+            description = "A modern Wayland idle manager that knows when to step back";
+            homepage = "https://github.com/saltnpepper97/stasis";
+            license = licenses.mit;
+            mainProgram = "stasis";
+          };
+        };
       in
       {
         packages = {
@@ -80,7 +87,7 @@
             config
             lib
             ;
-          stasisPackage = self.packages.${pkgs.system}.default;
+          pkgs = self.packages.${pkgs.system}.default;
         };
 
       homeModules.stasis = import ./modules/home/stasis.nix;
