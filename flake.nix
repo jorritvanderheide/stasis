@@ -17,10 +17,8 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-      in
-      {
-        packages = {
-          stasis = pkgs.rustPlatform.buildRustPackage {
+
+        stasis = pkgs.rustPlatform.buildRustPackage {
             pname = "stasis";
             version = "unstable";
             src = ./.;
@@ -40,8 +38,12 @@
 
             RUSTFLAGS = "-C target-cpu=native";
           };
-
-          default = self.packages.${system}.stasis;
+      in
+      {
+        packages = {
+          stasis = stasis;
+          default = stasis;
+          # default = self.packages.${system}.stasis;
         };
 
         devShells.default = pkgs.mkShell {
@@ -68,10 +70,9 @@
     // {
       nixosModules.stasis =
         {
-          self,
           config,
-          pkgs,
           lib,
+          pkgs,
           ...
         }:
         import ./modules/nixos/stasis.nix {
@@ -79,7 +80,7 @@
             config
             lib
             ;
-          stasisPackage = self.packages.${pkgs.system}.stasis;
+          stasisPackage = self.packages.${pkgs.system}.default;
         };
 
       homeModules.stasis = import ./modules/home/stasis.nix;
