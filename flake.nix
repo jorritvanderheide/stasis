@@ -79,6 +79,7 @@
         {
           config,
           lib,
+          pkgs,
           ...
         }:
         import ./modules/nixos/stasis.nix {
@@ -86,6 +87,7 @@
             self
             config
             lib
+            pkgs
             ;
         };
 
