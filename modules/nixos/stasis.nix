@@ -29,7 +29,7 @@ in
       description = "Stasis Wayland Idle Manager";
       after = [ "graphical-session.target" ];
       wants = [ "graphical-session.target" ];
-      wantedBy = [ "multi-user.target" ];
+      wantedBy = [ "default.target" ];
 
       serviceConfig = {
         Type = "simple";
@@ -38,7 +38,7 @@ in
         RestartSec = "5";
         Environment = "WAYLAND_DISPLAY=wayland-0";
 
-        # Optional
+        # Optional: wait until WAYLAND_DISPLAY exists
         ExecStartPre = "/bin/sh -c 'while [ ! -e /run/user/%U/wayland-0 ]; do sleep 0.1; done'";
       };
     };
